@@ -5,8 +5,8 @@ from imports import *
 
 
 def main():
-    preproc = True  # True for preprocessing
-    train = False  # True for training
+    preproc = False  # True for preprocessing
+    train = True  # True for training
     pred = False  # True for predicting
 
     ######### PREPROCESSING PARAMETERS #########
@@ -51,10 +51,10 @@ def main():
     train_window_length = 6
     train_sr = 44100
     if train_compute_spect:
-        input_shape = (train_n_fft // 2 + 1, (train_window_length * train_sr) // train_hop_length)
+        input_shape = (train_n_fft // 2 + 1, int(np.ceil((train_window_length * train_sr) / train_hop_length)))
     else:
-        input_shape = (int(window_length * sr),)
-    batch_size = 16
+        input_shape = (int(train_window_length * train_sr),)
+    batch_size = 1
     shuffle_buffer_size = 5 * batch_size
     epochs = 100
     drop_out = 0
@@ -105,7 +105,11 @@ def main():
     pred_name = 'spect_musdb18_sr_44k_window_6s_overlap_75_rect_nfft_4096_hop_1024_extra_vocals'
     pred_statistics_path = os.path.join('..', 'Cardinality', '_'.join(pred_name.split('_')[1:13]) + '_statistics.pkl')
 
-    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+    if tf.test.gpu_device_name():
+        print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+    else:
+        print("Please install GPU version of TF")
+        exit()
 
     if preproc:
         if multiple_sources:

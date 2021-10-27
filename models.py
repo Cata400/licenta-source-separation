@@ -16,16 +16,16 @@ def create_model_open_unmix_1_source(input_shape, optimizer, loss, n_fft, max_fr
     scaled_in = tf.math.divide(tf.math.subtract(cropped, input_mean), input_std)
     scaled_in = Reshape((scaled_in.shape[-1], scaled_in.shape[-2]))(scaled_in)
 
-    fc1 = Dense(units=n_fft // 4)(scaled_in)
+    fc1 = Dense(units=n_fft // 8)(scaled_in)
     bn1 = BatchNormalization()(fc1)
     tanh = Activation('tanh')(bn1)
 
-    blstm1 = Bidirectional(tf.keras.layers.LSTM(n_fft // 4, return_sequences=True))(tanh)
-    blstm2 = Bidirectional(tf.keras.layers.LSTM(n_fft // 4, return_sequences=True))(blstm1)
-    blstm3 = Bidirectional(tf.keras.layers.LSTM(n_fft // 4, return_sequences=True))(blstm2)
+    blstm1 = Bidirectional(tf.keras.layers.LSTM(n_fft // 16, return_sequences=True))(tanh)
+    blstm2 = Bidirectional(tf.keras.layers.LSTM(n_fft // 16, return_sequences=True))(blstm1)
+    blstm3 = Bidirectional(tf.keras.layers.LSTM(n_fft // 16, return_sequences=True))(blstm2)
 
     concat = Concatenate(axis=-1)([tanh, blstm3])
-    fc2 = Dense(units=n_fft // 4)(concat)
+    fc2 = Dense(units=n_fft // 8)(concat)
     bn2 = BatchNormalization()(fc2)
     relu = Activation('relu')(bn2)
 
