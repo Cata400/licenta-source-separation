@@ -207,3 +207,47 @@ def parse_and_decode_all_sources(example_proto):
     # decoded_other = tf.expand_dims(decoded_other, axis=-1)
 
     return decoded_mixture, decoded_bass, decoded_drums, decoded_vocals, decoded_other
+
+
+def get_name(compute_spect, dataset, sr, window_length, overlap, window_type, dB, n_fft, hop_length, extra_shuffle,
+             intra_shuffle, normalize_from_dataset, normalize, normalize01, standardize, multiple_sources, source):
+    name = ''
+    if compute_spect:
+        name += 'spect_'
+    else:
+        name += 'audio_'
+
+    if dataset == 'MUSDB18':
+        name += 'musdb18_'
+
+    name += 'sr_' + str(sr // 1000) + 'k_'
+    name += 'window_' + str(window_length) + 's_'
+    name += 'overlap_' + str(overlap) + '_'
+    name += str(window_type) + '_'
+    if compute_spect:
+        if dB:
+            name += 'dB_'
+        name += 'nfft_' + str(n_fft) + '_'
+        name += 'hop_' + str(hop_length) + '_'
+
+    if extra_shuffle:
+        name += 'extra_'
+    if intra_shuffle:
+        name += 'intra_'
+
+    if normalize_from_dataset:
+        name += 'normdataset_'
+    if normalize:
+        name += 'normalize_'
+    elif normalize01:
+        name += 'normalize01_'
+    elif standardize:
+        name += 'standardize_'
+
+    if multiple_sources:
+        name += 'all'
+    else:
+        name += str(source)
+
+    print(name)
+    return name

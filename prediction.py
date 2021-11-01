@@ -4,7 +4,7 @@ from utils import *
 
 
 def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr, window_length, overlap, window_type,
-            n_fft, hop_length, source, normalize_from_dataset, statistics_path, normalize, normalize01, standardize,
+            dB, n_fft, hop_length, source, normalize_from_dataset, statistics_path, normalize, normalize01, standardize,
             batch_size, save_path):
     if (normalize and normalize01) or (normalize01 and standardize) or (normalize and standardize):
         raise Exception('You need to choose only one type of normalization')
@@ -38,12 +38,14 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
             mixture_spect = librosa.stft(mixture_window, n_fft=n_fft, hop_length=hop_length)
 
             mixture_abs = np.abs(mixture_spect)
-            reference = np.max(mixture_abs)
-            mixture_abs = librosa.amplitude_to_db(mixture_abs, ref=reference)
-            np.clip(mixture_abs, -80, 0, out=mixture_abs)
+            if dB:
+                reference = np.max(mixture_abs)
+                mixture_abs = librosa.amplitude_to_db(mixture_abs, ref=reference)
+                np.clip(mixture_abs, -80, 0, out=mixture_abs)
 
             maxim = np.max(mixture_abs)
             maxim_absolut = np.max(np.abs(mixture_abs))
+            minim_absolut = np.min(np.abs(mixture_abs))
             minim = np.min(mixture_abs)
             mean = np.mean(mixture_abs)
             std = np.std(mixture_abs)
@@ -65,10 +67,19 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                                   statistics['std_mixture_spect']
             else:
                 if normalize:
-                    mixture_abs = mixture_abs / maxim_absolut
+                    if (not dB and maxim_absolut > 1e4) or (dB and maxim_absolut - minim_absolut > 10):
+                        mixture_abs = mixture_abs / maxim_absolut
+                    else:
+                        mixture_abs = np.zeros(mixture_abs.shape)
 
                 elif normalize01:
-                    mixture_abs = (mixture_abs + 80) / 80
+                    if dB:
+                        mixture_abs = (mixture_abs + 80) / 80
+                    else:
+                        if maxim - minim > 1e-4:
+                            mixture_abs = (mixture_abs - minim) / (maxim - minim)
+                        else:
+                            mixture_abs = np.zeros(mixture_abs.shape)
 
                 elif standardize:
                     mixture_abs = (mixture_abs - mean) / std
@@ -82,27 +93,37 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                                                          np.abs(statistics['minim_' + str(source) + '_spect']))
 
                     elif normalize01:
-                        if statistics['maxim_' + str(source) + '_spect'] - statistics['minim_' + str(source) + '_spect']:
-                            source_abs = source_abs * (statistics['maxim_' + str(source) + '_spect']
-                                                       - statistics['minim_' + str(source) + '_spect']) + \
-                                         statistics['minim_' + str(source) + '_spect']
-                        else:
-                            source_abs = np.zeros(source_abs.shape)
+                        source_abs = source_abs * (statistics['maxim_' + str(source) + '_spect']
+                                                   - statistics['minim_' + str(source) + '_spect']) + \
+                                     statistics['minim_' + str(source) + '_spect']
 
                     elif standardize:
                         source_abs = source_abs * statistics['std_' + str(source) + '_spect'] + \
                                      statistics['mean_' + str(source) + '_spect']
                 else:
                     if normalize:
-                        source_abs = source_abs * maxim_absolut
+                        if (not dB and maxim_absolut > 1e4) or (dB and maxim_absolut - minim_absolut > 10):
+                            source_abs = source_abs * maxim_absolut
+                        else:
+                            if dB:
+                                source_abs = source_abs - maxim_absolut
+                            else:
+                                source_abs = source_abs + maxim_absolut
 
                     elif normalize01:
-                        source_abs = source_abs * 80 - 80
+                        if dB:
+                            source_abs = source_abs * 80 - 80
+                        else:
+                            if maxim - minim > 1e-4:
+                                source_abs = source_abs * (maxim - minim) + minim
+                            else:
+                                source_abs = source_abs + maxim
 
                     elif standardize:
                         source_abs = source_abs * std + mean
 
-                source_abs = librosa.db_to_amplitude(source_abs, ref=reference)
+                if dB:
+                    source_abs = librosa.db_to_amplitude(source_abs, ref=reference)
                 mixture_phase = np.angle(mixture_spect)
                 source_spect = np.multiply(source_abs, np.exp(1j * mixture_phase))
                 source_window = librosa.istft(source_spect, hop_length=hop_length, win_length=n_fft)
@@ -154,16 +175,40 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                         other_abs = other_abs * statistics['std_other_spect'] + statistics['mean_other_spect']
                 else:
                     if normalize:
-                        bass_abs = bass_abs * maxim_absolut
-                        drums_abs = drums_abs * maxim_absolut
-                        vocals_abs = vocals_abs * maxim_absolut
-                        other_abs = other_abs * maxim_absolut
+                        if (not dB and maxim_absolut > 1e4) or (dB and maxim_absolut - minim_absolut > 10):
+                            bass_abs = bass_abs * maxim_absolut
+                            drums_abs = drums_abs * maxim_absolut
+                            vocals_abs = vocals_abs * maxim_absolut
+                            other_abs = other_abs * maxim_absolut
+                        else:
+                            if dB:
+                                bass_abs = bass_abs - maxim_absolut
+                                drums_abs = drums_abs - maxim_absolut
+                                vocals_abs = vocals_abs - maxim_absolut
+                                other_abs = other_abs - maxim_absolut
+                            else:
+                                bass_abs = bass_abs + maxim_absolut
+                                drums_abs = drums_abs + maxim_absolut
+                                vocals_abs = vocals_abs + maxim_absolut
+                                other_abs = other_abs + maxim_absolut
 
                     elif normalize01:
-                        bass_abs = bass_abs * 80 - 80
-                        drums_abs = drums_abs * 80 - 80
-                        vocals_abs = vocals_abs * 80 - 80
-                        other_abs = other_abs * 80 - 80
+                        if dB:
+                            bass_abs = bass_abs * 80 - 80
+                            drums_abs = drums_abs * 80 - 80
+                            vocals_abs = vocals_abs * 80 - 80
+                            other_abs = other_abs * 80 - 80
+                        else:
+                            if maxim - minim > 1e-4:
+                                bass_abs = bass_abs * (maxim - minim) + minim
+                                drums_abs = drums_abs * (maxim - minim) + minim
+                                vocals_abs = vocals_abs * (maxim - minim) + minim
+                                other_abs = other_abs * (maxim - minim) + minim
+                            else:
+                                bass_abs = bass_abs + maxim
+                                drums_abs = drums_abs + maxim
+                                vocals_abs = vocals_abs + maxim
+                                other_abs = other_abs + maxim
 
                     elif standardize:
                         bass_abs = bass_abs * std + mean

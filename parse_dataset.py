@@ -1,7 +1,7 @@
 from utils import *
 
 
-def parse_dataset(dataset, resample, sr, window_length, overlap, window_type, n_fft, hop_length, file_path, name):
+def parse_dataset(dataset, resample, sr, window_length, overlap, window_type, dB, n_fft, hop_length, file_path, name):
     maxim_dataset, maxim_mixture, maxim_bass, maxim_drums, maxim_vocals, maxim_other = 0, 0, 0, 0, 0, 0
     minim_dataset, minim_mixture, minim_bass, minim_drums, minim_vocals, minim_other = 999, 999, 999, 999, 999, 999
 
@@ -100,18 +100,19 @@ def parse_dataset(dataset, resample, sr, window_length, overlap, window_type, n_
                     other_spect = np.abs(librosa.stft(other_windows[window_index], n_fft=n_fft,
                                                                hop_length=hop_length))
 
-                    maxim = np.max(mixture_spect)
-                    bass_spect = librosa.amplitude_to_db(bass_spect, ref=maxim)
-                    drums_spect = librosa.amplitude_to_db(drums_spect, ref=maxim)
-                    vocals_spect = librosa.amplitude_to_db(vocals_spect, ref=maxim)
-                    other_spect = librosa.amplitude_to_db(other_spect, ref=maxim)
-                    mixture_spect = librosa.amplitude_to_db(mixture_spect, ref=maxim)
+                    if dB:
+                        maxim = np.max(mixture_spect)
+                        bass_spect = librosa.amplitude_to_db(bass_spect, ref=maxim)
+                        drums_spect = librosa.amplitude_to_db(drums_spect, ref=maxim)
+                        vocals_spect = librosa.amplitude_to_db(vocals_spect, ref=maxim)
+                        other_spect = librosa.amplitude_to_db(other_spect, ref=maxim)
+                        mixture_spect = librosa.amplitude_to_db(mixture_spect, ref=maxim)
 
-                    np.clip(mixture_spect, -80, 0, mixture_spect)
-                    np.clip(bass_spect, -80, 0, bass_spect)
-                    np.clip(drums_spect, -80, 0, drums_spect)
-                    np.clip(vocals_spect, -80, 0, vocals_spect)
-                    np.clip(other_spect, -80, 0, other_spect)
+                        np.clip(mixture_spect, -80, 0, mixture_spect)
+                        np.clip(bass_spect, -80, 0, bass_spect)
+                        np.clip(drums_spect, -80, 0, drums_spect)
+                        np.clip(vocals_spect, -80, 0, vocals_spect)
+                        np.clip(other_spect, -80, 0, other_spect)
 
                     if np.max(mixture_spect) > maxim_mixture_spect:
                         maxim_mixture_spect = np.max(mixture_spect)

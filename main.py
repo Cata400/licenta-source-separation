@@ -2,6 +2,7 @@ from preprocess import preprocess_1_source, preprocess_all_sources
 from train import training
 from prediction import predict
 from imports import *
+from utils import get_name
 
 
 def main():
@@ -14,14 +15,15 @@ def main():
     dataset = 'MUSDB18'
 
     resample = False  # True for downsampling every song
-    sr = 16000  # Hertz
-    window_length = 6  # Seconds
-    overlap = 75  # Percent
+    sr = 44100  # Hertz
+    window_length = 2  # Seconds
+    overlap = 0  # Percent
     window_type = 'rect'
 
     compute_spect = True  # False for using waveforms as inputs to the NN, True for using spectrograms
-    n_fft = 4096  # Frame size for spectrograms
-    hop_length = 1024  # Hop length in samples for spectrograms
+    dB = False           # True for using spectrogram in dB
+    n_fft = 2048  # Frame size for spectrograms
+    hop_length = 512  # Hop length in samples for spectrograms
 
     extra_song_shuffle = True  # Applies shuffling between songs
     intra_song_shuffle = False  # Applies shuffling between windows of a song
@@ -35,20 +37,26 @@ def main():
 
     # The name format is:
     # signal-rep_dataset_sr_sr-value_window_win-len-value_overlap_percent_win-type_nfft_nfft-value_hop_hop-len-value_shuffle-mode_norm-mode_source'
-    name = 'spect_musdb18_sr_44k_window_6s_overlap_75_rect_nfft_4096_hop_1024_extra_vocals'
     tf_record_path = os.path.join('..', 'TFRecords')
     if preproc:
+        name = get_name(compute_spect=compute_spect, dataset=dataset, sr=sr, window_length=window_length,
+                        overlap=overlap, window_type=window_type, dB=dB, n_fft=n_fft, hop_length=hop_length,
+                        extra_shuffle=extra_song_shuffle, intra_shuffle=intra_song_shuffle,
+                        normalize_from_dataset=normalize_from_dataset, normalize=normalize, normalize01=normalize01,
+                        standardize=standardize, multiple_sources=multiple_sources, source=source)
         writer_train = tf.io.TFRecordWriter(os.path.join(tf_record_path, name + '_train.tfrecord'))
         writer_val = tf.io.TFRecordWriter(os.path.join(tf_record_path, name + '_val.tfrecord'))
-    statistics_path = os.path.join('..', 'Cardinality', '_'.join(name.split('_')[1:13]) + '_statistics.pkl')
-    card_txt = name + '.txt'
+        statistics_path = os.path.join('..', 'Cardinality', '_'.join(name.split('_')[1:13]) + '_statistics.pkl')
+        card_txt = name + '.txt'
 
     ######### TRAINING PARAMETERS #########
     train_multiple_sources = False  # True for separating every source at the same time, False for one source
     train_compute_spect = True
-    train_n_fft = 4096
-    train_hop_length = 1024
-    train_window_length = 6
+    train_n_fft = 2048
+    train_hop_length = 512
+    train_window_length = 2
+    train_overlap = 0
+    train_window_type = 'rect'
     train_sr = 44100
     if train_compute_spect:
         input_shape = (train_n_fft // 2 + 1, int(np.ceil((train_window_length * train_sr) / train_hop_length)))
@@ -64,9 +72,13 @@ def main():
     lr_decay_patience = 80
     lr_decay_gamma = 0.3
     network = 'open_unmix'
-    name = 'spect_musdb18_sr_44k_window_6s_overlap_75_rect_nfft_4096_hop_1024_extra_vocals'
-    train_path = os.path.join(tf_record_path, name + '_train.tfrecord')
-    val_path = os.path.join(tf_record_path, name + '_val.tfrecord')
+    train_name = get_name(compute_spect=train_compute_spect, dataset=dataset, sr=train_sr,
+                          window_length=train_window_length, overlap=train_overlap, window_type=train_window_type,
+                          dB=False, n_fft=train_n_fft, hop_length=train_hop_length, extra_shuffle=True,
+                          intra_shuffle=False, normalize_from_dataset=False, normalize=False, normalize01=False,
+                          standardize=False, multiple_sources=False, source=source)
+    train_path = os.path.join(tf_record_path, train_name + '_train.tfrecord')
+    val_path = os.path.join(tf_record_path, train_name + '_val.tfrecord')
     save_model_name = 'open_unmix_vocals_1.h5'
     model_path = os.path.join('..', 'Models')
     loss = tf.keras.losses.MeanSquaredError()
@@ -82,12 +94,13 @@ def main():
     pred_source = 'vocals'
     pred_multiple_sources = False
     pred_resample = False
-    pred_sr = 16000
+    pred_sr = 44100
     pred_window_length = 1
     pred_overlap = 50
     pred_window_type = 'rect'
 
     pred_compute_spect = False
+    pred_dB = False
     pred_n_fft = 2048
     pred_hop_length = 512
 
@@ -102,7 +115,12 @@ def main():
     model_path = os.path.join('..', 'Models')
     save_song_path = os.path.join('..', 'Predictions')
     pred_batch_size = 32
-    pred_name = 'spect_musdb18_sr_44k_window_6s_overlap_75_rect_nfft_4096_hop_1024_extra_vocals'
+    pred_name = get_name(compute_spect=pred_compute_spect, dataset=dataset, sr=pred_sr,
+                         window_length=pred_window_length, overlap=pred_overlap, window_type=pred_window_type, dB=dB,
+                         n_fft=pred_n_fft, hop_length=pred_hop_length, extra_shuffle=True, intra_shuffle=False,
+                         normalize_from_dataset=pred_normalize_from_dataset, normalize=pred_normalize,
+                         normalize01=pred_normalize01, standardize=pred_standardize,
+                         multiple_sources=pred_multiple_sources, source=pred_source)
     pred_statistics_path = os.path.join('..', 'Cardinality', '_'.join(pred_name.split('_')[1:13]) + '_statistics.pkl')
 
     if tf.test.gpu_device_name():
@@ -115,7 +133,7 @@ def main():
         if multiple_sources:
             preprocess_all_sources(dataset=dataset, resample=resample, sr=sr, window_length=window_length,
                                    overlap=overlap,
-                                   window_type=window_type, compute_spect=compute_spect, n_fft=n_fft,
+                                   window_type=window_type, compute_spect=compute_spect, dB=dB, n_fft=n_fft,
                                    hop_length=hop_length, writer_train=writer_train, writer_val=writer_val,
                                    extra_song_shuffle=extra_song_shuffle, intra_song_shuffle=intra_song_shuffle,
                                    normalize_from_dataset=normalize_from_dataset, statistics_path=statistics_path,
@@ -123,7 +141,7 @@ def main():
                                    card_txt=card_txt)
         else:
             preprocess_1_source(dataset=dataset, resample=resample, sr=sr, window_length=window_length, overlap=overlap,
-                                window_type=window_type, compute_spect=compute_spect, n_fft=n_fft,
+                                window_type=window_type, compute_spect=compute_spect, dB=dB, n_fft=n_fft,
                                 hop_length=hop_length, writer_train=writer_train, writer_val=writer_val, source=source,
                                 extra_song_shuffle=extra_song_shuffle, intra_song_shuffle=intra_song_shuffle,
                                 normalize_from_dataset=normalize_from_dataset, statistics_path=statistics_path,
