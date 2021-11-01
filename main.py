@@ -6,8 +6,8 @@ from utils import get_name
 
 
 def main():
-    preproc = False  # True for preprocessing
-    train = True  # True for training
+    preproc = True  # True for preprocessing
+    train = False  # True for training
     pred = False  # True for predicting
 
     ######### PREPROCESSING PARAMETERS #########
@@ -132,9 +132,8 @@ def main():
     if preproc:
         if multiple_sources:
             preprocess_all_sources(dataset=dataset, resample=resample, sr=sr, window_length=window_length,
-                                   overlap=overlap,
-                                   window_type=window_type, compute_spect=compute_spect, dB=dB, n_fft=n_fft,
-                                   hop_length=hop_length, writer_train=writer_train, writer_val=writer_val,
+                                   overlap=overlap, window_type=window_type, compute_spect=compute_spect, dB=dB,
+                                   n_fft=n_fft, hop_length=hop_length, writer_train=writer_train, writer_val=writer_val,
                                    extra_song_shuffle=extra_song_shuffle, intra_song_shuffle=intra_song_shuffle,
                                    normalize_from_dataset=normalize_from_dataset, statistics_path=statistics_path,
                                    normalize=normalize, normalize01=normalize01, standardize=standardize,
@@ -158,7 +157,7 @@ def main():
         predict(test_path=os.path.join(test_path, test_song), model_path=os.path.join(model_path, load_model_name),
                 multiple_sources=pred_multiple_sources, compute_spect=pred_compute_spect, resample=pred_resample,
                 sr=pred_sr, window_length=pred_window_length, overlap=pred_overlap, window_type=pred_window_type,
-                n_fft=pred_n_fft, hop_length=pred_hop_length, source=pred_source,
+                dB=pred_dB, n_fft=pred_n_fft, hop_length=pred_hop_length, source=pred_source,
                 normalize_from_dataset=pred_normalize_from_dataset, statistics_path=pred_statistics_path,
                 normalize=pred_normalize, normalize01=pred_normalize01, standardize=pred_standardize,
                 batch_size=pred_batch_size, save_path=os.path.join(save_song_path, test_song))
