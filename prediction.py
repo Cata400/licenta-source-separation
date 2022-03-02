@@ -1,6 +1,6 @@
-import librosa
-
 from utils import *
+import librosa
+from custom_layers import ScaleInLayer, ScaleOutLayer
 
 
 def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr, window_length, overlap, window_type,
@@ -13,14 +13,14 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
         with open(statistics_path, 'rb') as f:
             statistics = pickle.load(f)
 
-    model = tf.keras.models.load_model(model_path)
+    # model = tf.keras.models.load_model(model_path)
+    model = tf.keras.models.load_model(model_path, custom_objects={'ScaleInLayer': ScaleInLayer, 'ScaleOutLayer':ScaleOutLayer})
 
     original_sr = librosa.get_samplerate(test_path)
     if resample:
         test_song, _ = librosa.load(test_path, sr=sr, mono=True)
     else:
-        sr = librosa.get_samplerate(test_path)
-        test_song, _ = librosa.load(test_path, sr=sr, mono=True)
+        test_song, _ = librosa.load(test_path, sr=original_sr, mono=True)
 
     if not multiple_sources:
         source_windows = []
@@ -36,8 +36,8 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
 
         for mixture_window in mixture_windows:
             mixture_spect = librosa.stft(mixture_window, n_fft=n_fft, hop_length=hop_length)
-
             mixture_abs = np.abs(mixture_spect)
+
             if dB:
                 reference = np.max(mixture_abs)
                 mixture_abs = librosa.amplitude_to_db(mixture_abs, ref=reference)
@@ -67,7 +67,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                                   statistics['std_mixture_spect']
             else:
                 if normalize:
-                    if (not dB and maxim_absolut > 1e4) or (dB and maxim_absolut - minim_absolut > 10):
+                    if (not dB and maxim_absolut > 10) or (dB and maxim_absolut - minim_absolut > 10):
                         mixture_abs = mixture_abs / maxim_absolut
                     else:
                         mixture_abs = np.zeros(mixture_abs.shape)
@@ -76,7 +76,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                     if dB:
                         mixture_abs = (mixture_abs + 80) / 80
                     else:
-                        if maxim - minim > 1e-4:
+                        if maxim - minim > 1e-2:
                             mixture_abs = (mixture_abs - minim) / (maxim - minim)
                         else:
                             mixture_abs = np.zeros(mixture_abs.shape)
@@ -85,7 +85,9 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                     mixture_abs = (mixture_abs - mean) / std
 
             if not multiple_sources:
+                mixture_abs = np.expand_dims(mixture_abs, axis=0)
                 source_abs = model.predict(mixture_abs, batch_size=batch_size)
+                source_abs = np.squeeze(source_abs)
 
                 if normalize_from_dataset:
                     if normalize:
@@ -102,7 +104,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                                      statistics['mean_' + str(source) + '_spect']
                 else:
                     if normalize:
-                        if (not dB and maxim_absolut > 1e4) or (dB and maxim_absolut - minim_absolut > 10):
+                        if (not dB and maxim_absolut > 10) or (dB and maxim_absolut - minim_absolut > 10):
                             source_abs = source_abs * maxim_absolut
                         else:
                             if dB:
@@ -114,7 +116,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
                         if dB:
                             source_abs = source_abs * 80 - 80
                         else:
-                            if maxim - minim > 1e-4:
+                            if maxim - minim > 1e-2:
                                 source_abs = source_abs * (maxim - minim) + minim
                             else:
                                 source_abs = source_abs + maxim
@@ -124,6 +126,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
 
                 if dB:
                     source_abs = librosa.db_to_amplitude(source_abs, ref=reference)
+
                 mixture_phase = np.angle(mixture_spect)
                 source_spect = np.multiply(source_abs, np.exp(1j * mixture_phase))
                 source_window = librosa.istft(source_spect, hop_length=hop_length, win_length=n_fft)
@@ -240,7 +243,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
         if not multiple_sources:
             print('Prediction windows done!')
             test_source = sigrec(source_windows, overlap, 'OLA')
-            wavfile.write(save_path + '_' + str(source) + '.wav', original_sr, test_source)
+            wavfile.write(save_path.split('.wav')[0] + '_' + str(source) + '.wav', original_sr, test_source)
             print(str(source).capitalize() + ' prediction done!')
         else:
             print('Prediction windows done!')

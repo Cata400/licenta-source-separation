@@ -7,7 +7,7 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Dense, Input, Activation, BatchNormalization, Dropout, Cropping1D, Reshape, \
-    Bidirectional, LSTM, Concatenate, Multiply, Cropping2D, Lambda
+    Bidirectional, LSTM, Concatenate, Multiply, Cropping2D, Lambda, Conv2D, LeakyReLU, Conv2DTranspose, Add
 from tensorflow.keras.optimizers import SGD
 import datetime
 from tensorflow.keras.utils import to_categorical
@@ -21,3 +21,4 @@ import librosa.display
 import scipy
 from pydub import AudioSegment
 import ntpath
+from tensorflow.python.framework.ops import disable_eager_execution

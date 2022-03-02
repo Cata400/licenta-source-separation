@@ -76,7 +76,6 @@ def sigrec(w_signal, overlap, mode='MEAN'):
 
     non_ov = int((1 - overlap) * window_length)  # non overlapping section of 2 windows
     lenx = (n - 1) * non_ov + window_length  # len of signal to reconstruct. formula might be wrong.
-    print('Reconstructed signal shape: ', lenx)
     delay = non_ov  # used to delay i'th window when creating the matrix that will be averaged
 
     w_frm_aux = np.zeros((n, lenx), dtype='float32')  # size = windows x signal_length
@@ -249,5 +248,4 @@ def get_name(compute_spect, dataset, sr, window_length, overlap, window_type, dB
     else:
         name += str(source)
 
-    print(name)
     return name

@@ -9,6 +9,7 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
     train_card, val_card = 0, 0
     np.random.seed(42)
 
+    txt = ''
     if (normalize and normalize01) or (normalize01 and standardize) or (normalize and standardize):
         raise Exception('You need to choose only one type of normalization')
 
@@ -16,7 +17,7 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
         with open(statistics_path, 'rb') as f:
             statistics = pickle.load(f)
 
-    if dataset == 'MUSDB18':
+    if dataset.lower() == 'musdb18':
         for subfolder in sorted(os.listdir(os.path.join('..', 'Datasets', 'MUSDB18'))):
             path = os.path.join('..', 'Datasets', 'MUSDB18', subfolder)
             songs = os.listdir(path)
@@ -27,6 +28,8 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                 songs = sorted(songs)
 
             for i, song in enumerate(songs):
+                # if i == 2:
+                #     break
                 print(i, song)
                 if resample:
                     x, _ = librosa.load(os.path.join(path, song, 'mixture.wav'), sr=sr, mono=True)
@@ -87,7 +90,7 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                                                  statistics['std_' + str(source) + '_spect']
                         else:
                             if normalize:
-                                if (not dB and np.max(np.abs(x_window_spect)) > 1e4) or (
+                                if (not dB and np.max(np.abs(x_window_spect)) > 10) or (
                                         dB and np.max(np.abs(x_window_spect)) - np.min(np.abs(x_window_spect)) > 10):
                                     x_window_spect = x_window_spect / np.max(np.abs(x_window_spect))
                                 else:
@@ -103,12 +106,12 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                                     x_window_spect = (x_window_spect + 80) / 80
                                     y_window_spect = (y_window_spect + 80) / 80
                                 else:
-                                    if np.max(x_window_spect) - np.min(x_window_spect) > 1e-4:
+                                    if np.max(x_window_spect) - np.min(x_window_spect) > 1e-2:
                                         x_window_spect = (x_window_spect - np.min(x_window_spect)) / \
                                                          (np.max(x_window_spect) - np.min(x_window_spect))
                                     else:
                                         x_window_spect = np.zeros(x_window_spect.shape)
-                                    if np.max(y_window_spect) - np.min(y_window_spect) > 1e-4:
+                                    if np.max(y_window_spect) - np.min(y_window_spect) > 1e-2:
                                         y_window_spect = (y_window_spect - np.min(y_window_spect)) / \
                                                          (np.max(y_window_spect) - np.min(y_window_spect))
                                     else:
@@ -126,12 +129,15 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                         #         print('stats y:', np.mean(y_window_spect), np.std(y_window_spect))
                         #           break
 
+                        txt += song + ' ' + str(x_window_spect.dtype) + ' ' + str(y_window_spect.dtype) + '\n'
                         if subfolder == 'train':
-                            train_serialized_spectrograms = serialize_data_1_source(x_window_spect, y_window_spect)
+                            train_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
+                                                                                    y_window_spect.astype(np.float32))
                             writer_train.write(train_serialized_spectrograms)
                             train_card += 1
                         elif subfolder == 'val':
-                            val_serialized_spectrograms = serialize_data_1_source(x_window_spect, y_window_spect)
+                            val_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
+                                                                                    y_window_spect.astype(np.float32))
                             writer_val.write(val_serialized_spectrograms)
                             val_card += 1
 
@@ -193,6 +199,9 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
     else:
         raise Exception('Dataset is not correct')
 
+    with open('out.txt', 'w') as f:
+        print(txt, file=f)
+
     write_cardinality(os.path.join('..', 'Cardinality', card_txt), train_card, val_card)
 
 
@@ -209,7 +218,7 @@ def preprocess_all_sources(dataset, resample, sr, window_length, overlap, window
         with open(statistics_path, 'rb') as f:
             statistics = pickle.load(f)
 
-    if dataset == 'MUSDB18':
+    if dataset.lower() == 'musdb18':
         for subfolder in sorted(os.listdir(os.path.join('..', 'Datasets', 'MUSDB18'))):
             path = os.path.join('..', 'Datasets', 'MUSDB18', subfolder)
             songs = os.listdir(path)
@@ -341,27 +350,32 @@ def preprocess_all_sources(dataset, resample, sr, window_length, overlap, window
                         else:
                             if normalize:
                                 if (not dB and np.max(np.abs(mixture_window_spect)) > 1e4) or (
-                                        dB and np.max(np.abs(mixture_window_spect)) - np.min(np.abs(mixture_window_spect)) > 10):
+                                        dB and np.max(np.abs(mixture_window_spect)) -
+                                        np.min(np.abs(mixture_window_spect)) > 10):
                                     mixture_window_spect = mixture_window_spect / np.max(np.abs(mixture_window_spect))
                                 else:
                                     mixture_window_spect = np.zeros(mixture_window_spect.shape)
                                 if (not dB and np.max(np.abs(bass_window_spect)) > 1e4) or (
-                                        dB and np.max(np.abs(bass_window_spect)) - np.min(np.abs(bass_window_spect)) > 10):
+                                        dB and np.max(np.abs(bass_window_spect)) -
+                                        np.min(np.abs(bass_window_spect)) > 10):
                                     bass_window_spect = bass_window_spect / np.max(np.abs(bass_window_spect))
                                 else:
                                     bass_window_spect = np.zeros(bass_window_spect.shape)
                                 if (not dB and np.max(np.abs(drums_window_spect)) > 1e4) or (
-                                        dB and np.max(np.abs(drums_window_spect)) - np.min(np.abs(drums_window_spect)) > 10):
+                                        dB and np.max(np.abs(drums_window_spect)) -
+                                        np.min(np.abs(drums_window_spect)) > 10):
                                     drums_window_spect = drums_window_spect / np.max(np.abs(drums_window_spect))
                                 else:
                                     drums_window_spect = np.zeros(drums_window_spect.shape)
                                 if (not dB and np.max(np.abs(vocals_window_spect)) > 1e4) or (
-                                        dB and np.max(np.abs(vocals_window_spect)) - np.min(np.abs(vocals_window_spect)) > 10):
+                                        dB and np.max(np.abs(vocals_window_spect)) -
+                                        np.min(np.abs(vocals_window_spect)) > 10):
                                     vocals_window_spect = vocals_window_spect / np.max(np.abs(vocals_window_spect))
                                 else:
                                     vocals_window_spect = np.zeros(vocals_window_spect.shape)
                                 if (not dB and np.max(np.abs(other_window_spect)) > 1e4) or (
-                                        dB and np.max(np.abs(other_window_spect)) - np.min(np.abs(other_window_spect)) > 10):
+                                        dB and np.max(np.abs(other_window_spect)) -
+                                        np.min(np.abs(other_window_spect)) > 10):
                                     other_window_spect = other_window_spect / np.max(np.abs(other_window_spect))
                                 else:
                                     other_window_spect = np.zeros(other_window_spect.shape)
@@ -376,27 +390,29 @@ def preprocess_all_sources(dataset, resample, sr, window_length, overlap, window
                                 else:
                                     if np.max(mixture_window_spect) - np.min(mixture_window_spect) > 1e4:
                                         mixture_window_spect = (mixture_window_spect - np.min(mixture_window_spect)) / \
-                                                           (np.max(mixture_window_spect) - np.min(mixture_window_spect))
+                                                               (np.max(mixture_window_spect) - np.min(
+                                                                   mixture_window_spect))
                                     else:
                                         mixture_window_spect = np.zeros(mixture_window_spect.shape)
                                     if np.max(bass_window_spect) - np.min(bass_window_spect) > 1e4:
                                         bass_window_spect = (bass_window_spect - np.min(bass_window_spect)) / \
-                                                        (np.max(bass_window_spect) - np.min(bass_window_spect))
+                                                            (np.max(bass_window_spect) - np.min(bass_window_spect))
                                     else:
                                         bass_window_spect = np.zeros(bass_window_spect.shape)
                                     if np.max(drums_window_spect) - np.min(bass_window_spect) > 1e4:
                                         drums_window_spect = (drums_window_spect - np.min(drums_window_spect)) / \
-                                                         (np.max(drums_window_spect) - np.min(drums_window_spect))
+                                                             (np.max(drums_window_spect) - np.min(drums_window_spect))
                                     else:
                                         drums_window_spect = np.zeros(drums_window_spect.shape)
                                     if np.max(vocals_window_spect) - np.min(vocals_window_spect) > 1e4:
                                         vocals_window_spect = (vocals_window_spect - np.min(vocals_window_spect)) / \
-                                                          (np.max(vocals_window_spect) - np.min(vocals_window_spect))
+                                                              (np.max(vocals_window_spect) - np.min(
+                                                                  vocals_window_spect))
                                     else:
                                         vocals_window_spect = np.zeros(vocals_window_spect.shape)
                                     if np.max(other_window_spect) - np.min(other_window_spect) > 1e4:
                                         other_window_spect = (other_window_spect - np.min(other_window_spect)) / \
-                                                         (np.max(other_window_spect) - np.min(other_window_spect))
+                                                             (np.max(other_window_spect) - np.min(other_window_spect))
                                     else:
                                         other_window_spect = np.zeros(other_window_spect.shape)
 
