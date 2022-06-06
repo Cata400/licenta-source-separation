@@ -2,28 +2,9 @@ from imports import *
 
 
 def sigwin(x, window_length, w_type, overlap):
-    """
-    - w_type[string] can be: -rect
-                             -boxcar
-                             -triang
-                             -blackman
-                             -hamming
-                             -hann
-                             -bartlett
-                             -flattop
-                             -parzen
-                             -bohman
-                             -blackmanharris
-                             -nuttall
-                             -barthann
-
-    - overlap [percentage]
-    - l[sample number]
-    - x[list or np.array]
-    """
-
     overlap = overlap / 100
     w = []
+    window_length = int(window_length)
     delay = int((1 - overlap) * window_length)
 
     if w_type != 'rect':
@@ -178,8 +159,8 @@ def parse_and_decode_1_source(example_proto):
     decoded_mixture = tf.io.parse_tensor(element['mixture'], 'float32')
     decoded_source = tf.io.parse_tensor(element['source'], 'float32')
 
-    # decoded_mixture = tf.expand_dims(decoded_mixture, axis=-1)
-    # decoded_source = tf.expand_dims(decoded_source, axis=-1)
+    decoded_mixture = tf.expand_dims(decoded_mixture, axis=-1)
+    decoded_source = tf.expand_dims(decoded_source, axis=-1)
 
     return decoded_mixture, decoded_source
 
@@ -209,7 +190,7 @@ def parse_and_decode_all_sources(example_proto):
 
 
 def get_name(compute_spect, dataset, sr, window_length, overlap, window_type, dB, n_fft, hop_length, extra_shuffle,
-             intra_shuffle, normalize_from_dataset, normalize, normalize01, standardize, multiple_sources, source):
+             intra_shuffle, normalize_from_dataset, normalize, normalize01, standardize, multiple_sources, source, aug):
     name = ''
     if compute_spect:
         name += 'spect_'
@@ -248,4 +229,53 @@ def get_name(compute_spect, dataset, sr, window_length, overlap, window_type, dB
     else:
         name += str(source)
 
+    if aug:
+        name += '_aug'
+
     return name
+
+
+def data_aug(signals, type):
+    FX = AudioEffectsChain()
+    x, y = signals
+
+    # Adaugat zgomot cu SNR intre valori
+    if type == 'noise':
+        SNR_target = np.random.uniform(10, 30)
+        noise = np.random.normal(0, 1, size=len(x))
+        alpha = ((10 ** (SNR_target / 10) * np.sum(noise ** 2)) / np.sum(x ** 2)) ** (-1 / 2)
+        # print(alpha,'alfa')
+        x = x + noise * alpha
+        y = y + noise * alpha
+
+    # Amplitude change
+    if type == 'gain':
+        gain = np.random.uniform(0.5, 1.5)
+        x = x * gain
+        y = y * gain
+
+    # Reverb
+    if type == 'reverb':
+        FX = FX.reverb(reverberance=np.random.uniform(25, 75), room_scale=100, wet_gain=np.random.uniform(-10, 10),)
+        x = FX(x)
+        y = FX(y)
+
+    # Phaser
+    if type == 'phaser':
+        FX = FX.phaser(gain_in=np.random.uniform(0.85, 0.95), gain_out=np.random.uniform(0.75, 0.85),)
+        x = FX(x)
+        y = FX(y)
+
+    # Overdrive
+    if type == 'overdrive':
+        FX = FX.overdrive(gain=np.random.uniform(5, 25))
+        x = FX(x)
+        y = FX(y)
+
+    # Pitch
+    if type == 'pitch':
+        FX = FX.pitch(shift=np.random.uniform(-200, 200))
+        x = FX(x)
+        y = FX(y)
+
+    return x, y

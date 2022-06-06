@@ -5,7 +5,7 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                         hop_length,
                         writer_train, writer_val, source, extra_song_shuffle, intra_song_shuffle,
                         normalize_from_dataset,
-                        statistics_path, normalize, normalize01, standardize, card_txt):
+                        statistics_path, normalize, normalize01, standardize, card_txt, network):
     train_card, val_card = 0, 0
     np.random.seed(42)
 
@@ -52,6 +52,10 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                                                              hop_length=hop_length), dtype='float32')
                         y_window_spect = np.abs(librosa.stft(y_windows[window_index], n_fft=n_fft,
                                                              hop_length=hop_length), dtype='float32')
+
+                        if network.lower() == 'u_net':
+                            x_window_spect = x_window_spect[:-1, :-1]
+                            y_window_spect = y_window_spect[:-1, :-1]
 
                         if dB:
                             y_window_spect = librosa.amplitude_to_db(y_window_spect, ref=np.max(x_window_spect))
@@ -129,7 +133,6 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                         #         print('stats y:', np.mean(y_window_spect), np.std(y_window_spect))
                         #           break
 
-                        txt += song + ' ' + str(x_window_spect.dtype) + ' ' + str(y_window_spect.dtype) + '\n'
                         if subfolder == 'train':
                             train_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
                                                                                     y_window_spect.astype(np.float32))
@@ -137,9 +140,11 @@ def preprocess_1_source(dataset, resample, sr, window_length, overlap, window_ty
                             train_card += 1
                         elif subfolder == 'val':
                             val_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
-                                                                                    y_window_spect.astype(np.float32))
+                                                                                  y_window_spect.astype(np.float32))
                             writer_val.write(val_serialized_spectrograms)
                             val_card += 1
+                        txt += song + ' ' + str(x_window_spect.dtype) + ' ' + str(y_window_spect.dtype) + '\n'
+
 
                 else:
                     if normalize_from_dataset:
@@ -543,5 +548,598 @@ def preprocess_all_sources(dataset, resample, sr, window_length, overlap, window
 
     else:
         raise Exception('Dataset is not correct!')
+
+    write_cardinality(os.path.join('..', 'Cardinality', card_txt), train_card, val_card)
+
+
+def preprocess_inverse(dataset, resample, sr, window_length, overlap, window_type, compute_spect, dB, n_fft,
+                       hop_length, writer_train, writer_val, extra_song_shuffle, intra_song_shuffle,
+                       normalize_from_dataset, statistics_path, normalize, normalize01, standardize, card_txt):
+    train_card, val_card = 0, 0
+    np.random.seed(42)
+
+    if (normalize and normalize01) or (normalize01 and standardize) or (normalize and standardize):
+        raise Exception('You need to choose only one type of normalization')
+
+    if normalize_from_dataset:
+        with open(statistics_path, 'rb') as f:
+            statistics = pickle.load(f)
+
+    if dataset.lower() == 'musdb18':
+        for subfolder in sorted(os.listdir(os.path.join('..', 'Datasets', 'MUSDB18'))):
+            path = os.path.join('..', 'Datasets', 'MUSDB18', subfolder)
+            songs = os.listdir(path)
+
+            if extra_song_shuffle:
+                np.random.shuffle(songs)
+            else:
+                songs = sorted(songs)
+
+            for i, song in enumerate(songs):
+                print(i, song)
+                if resample:
+                    mixture, _ = librosa.load(os.path.join(path, song, 'mixture.wav'), sr=sr, mono=True)
+                    bass, _ = librosa.load(os.path.join(path, song, 'bass.wav'), sr=sr, mono=True)
+                    drums, _ = librosa.load(os.path.join(path, song, 'drums.wav'), sr=sr, mono=True)
+                    vocals, _ = librosa.load(os.path.join(path, song, 'vocals.wav'), sr=sr, mono=True)
+                    other, _ = librosa.load(os.path.join(path, song, 'other.wav'), sr=sr, mono=True)
+                else:
+                    sr = librosa.get_samplerate(os.path.join(path, song, 'mixture.wav'))
+                    mixture, _ = librosa.load(os.path.join(path, song, 'mixture.wav'), sr=sr, mono=True)
+                    bass, _ = librosa.load(os.path.join(path, song, 'bass.wav'), sr=sr, mono=True)
+                    drums, _ = librosa.load(os.path.join(path, song, 'drums.wav'), sr=sr, mono=True)
+                    vocals, _ = librosa.load(os.path.join(path, song, 'vocals.wav'), sr=sr, mono=True)
+                    other, _ = librosa.load(os.path.join(path, song, 'other.wav'), sr=sr, mono=True)
+
+                if compute_spect:
+                    mixture_windows = sigwin(mixture, window_length * sr, window_type, overlap)
+                    bass_windows = sigwin(bass, window_length * sr, window_type, overlap)
+                    drums_windows = sigwin(drums, window_length * sr, window_type, overlap)
+                    vocals_windows = sigwin(vocals, window_length * sr, window_type, overlap)
+                    other_windows = sigwin(other, window_length * sr, window_type, overlap)
+
+                    if intra_song_shuffle:
+                        np.random.shuffle(mixture_windows)
+                        np.random.shuffle(bass_windows)
+                        np.random.shuffle(drums_windows)
+                        np.random.shuffle(vocals_windows)
+                        np.random.shuffle(other_windows)
+
+                    for window_index in range(mixture_windows.shape[0]):
+                        mixture_window_spect = np.abs(librosa.stft(mixture_windows[window_index], n_fft=n_fft,
+                                                                   hop_length=hop_length), dtype='float32')
+                        bass_window_spect = np.abs(librosa.stft(bass_windows[window_index], n_fft=n_fft,
+                                                                hop_length=hop_length), dtype='float32')
+                        drums_window_spect = np.abs(librosa.stft(drums_windows[window_index], n_fft=n_fft,
+                                                                 hop_length=hop_length), dtype='float32')
+                        vocals_window_spect = np.abs(librosa.stft(vocals_windows[window_index], n_fft=n_fft,
+                                                                  hop_length=hop_length), dtype='float32')
+                        other_window_spect = np.abs(librosa.stft(other_windows[window_index], n_fft=n_fft,
+                                                                 hop_length=hop_length), dtype='float32')
+
+                        x_window_spect = mixture_window_spect
+                        y_window_spect = bass_window_spect + drums_window_spect + other_window_spect
+
+                        if dB:
+                            y_window_spect = librosa.amplitude_to_db(y_window_spect, ref=np.max(x_window_spect))
+                            x_window_spect = librosa.amplitude_to_db(x_window_spect, ref=np.max)
+
+                            np.clip(x_window_spect, -80, 0, x_window_spect)
+                            np.clip(y_window_spect, -80, 0, y_window_spect)
+
+                        if normalize:
+                            if (not dB and np.max(np.abs(x_window_spect)) > 10) or (
+                                    dB and np.max(np.abs(x_window_spect)) - np.min(np.abs(x_window_spect)) > 10):
+                                x_window_spect = x_window_spect / np.max(np.abs(x_window_spect))
+                            else:
+                                x_window_spect = np.zeros(x_window_spect.shape)
+                            if (not dB and np.max(np.abs(y_window_spect)) > 1e4) or (
+                                    dB and np.max(np.abs(y_window_spect)) - np.min(np.abs(y_window_spect)) > 10):
+                                y_window_spect = y_window_spect / np.max(np.abs(y_window_spect))
+                            else:
+                                y_window_spect = np.zeros(y_window_spect.shape)
+
+                        elif normalize01:
+                            if dB:
+                                x_window_spect = (x_window_spect + 80) / 80
+                                y_window_spect = (y_window_spect + 80) / 80
+                            else:
+                                if np.max(x_window_spect) - np.min(x_window_spect) > 1e-2:
+                                    x_window_spect = (x_window_spect - np.min(x_window_spect)) / \
+                                                     (np.max(x_window_spect) - np.min(x_window_spect))
+                                else:
+                                    x_window_spect = np.zeros(x_window_spect.shape)
+                                if np.max(y_window_spect) - np.min(y_window_spect) > 1e-2:
+                                    y_window_spect = (y_window_spect - np.min(y_window_spect)) / \
+                                                     (np.max(y_window_spect) - np.min(y_window_spect))
+                                else:
+                                    y_window_spect = np.zeros(y_window_spect.shape)
+
+                        elif standardize:
+                            x_window_spect = (x_window_spect - np.mean(x_window_spect)) / np.std(x_window_spect)
+                            y_window_spect = (y_window_spect - np.mean(y_window_spect)) / np.std(y_window_spect)
+
+                        #     if window_index == x_windows.shape[0] // 2:
+                        #         print(x_window_spect.shape, y_window_spect.shape)
+                        #         print('extreme x:', np.max(x_window_spect), np.min(x_window_spect))
+                        #         print('extreme y:', np.max(y_window_spect), np.min(y_window_spect))
+                        #         print('stats x:', np.mean(x_window_spect), np.std(x_window_spect))
+                        #         print('stats y:', np.mean(y_window_spect), np.std(y_window_spect))
+                        #           break
+                        if subfolder == 'train':
+                            train_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
+                                                                                    y_window_spect.astype(np.float32))
+                            writer_train.write(train_serialized_spectrograms)
+                            train_card += 1
+                        elif subfolder == 'val':
+                            val_serialized_spectrograms = serialize_data_1_source(x_window_spect.astype(np.float32),
+                                                                                  y_window_spect.astype(np.float32))
+                            writer_val.write(val_serialized_spectrograms)
+                            val_card += 1
+
+
+def preprocess_1_source_aug(dataset, resample, sr, window_length, overlap, window_type, compute_spect, dB, n_fft,
+                            hop_length, writer_train, writer_val, source, extra_song_shuffle, intra_song_shuffle,
+                            normalize_from_dataset, statistics_path, normalize, normalize01, standardize, card_txt,
+                            network, augments):
+    train_card, val_card = 0, 0
+    np.random.seed(42)
+
+    txt = ''
+    if (normalize and normalize01) or (normalize01 and standardize) or (normalize and standardize):
+        raise Exception('You need to choose only one type of normalization')
+
+    if normalize_from_dataset:
+        with open(statistics_path, 'rb') as f:
+            statistics = pickle.load(f)
+
+    if dataset.lower() == 'musdb18':
+        for subfolder in sorted(os.listdir(os.path.join('..', 'Datasets', 'MUSDB18'))):
+            path = os.path.join('..', 'Datasets', 'MUSDB18', subfolder)
+            songs = os.listdir(path)
+
+            if extra_song_shuffle:
+                np.random.shuffle(songs)
+            else:
+                songs = sorted(songs)
+
+            for i, song in enumerate(songs):
+                # if i == 1:
+                #     break
+                print(i, song)
+                if resample:
+                    x, _ = librosa.load(os.path.join(path, song, 'mixture.wav'), sr=sr, mono=True)
+                    y, _ = librosa.load(os.path.join(path, song, source + '.wav'), sr=sr, mono=True)
+                else:
+                    sr = librosa.get_samplerate(os.path.join(path, song, 'mixture.wav'))
+                    x, _ = librosa.load(os.path.join(path, song, 'mixture.wav'), sr=sr, mono=True)
+                    y, _ = librosa.load(os.path.join(path, song, source + '.wav'), sr=sr, mono=True)
+
+                x_list, y_list = [x], [y]
+                for aug in augments:
+                    x_aug, y_aug = data_aug((x, y), aug)
+                    x_list.append(x_aug)
+                    # y_list.append(y_aug)
+                    y_list.append(y)
+
+                for xi, yi in zip(x_list, y_list):
+                    if compute_spect:
+                        xi_windows = sigwin(xi, window_length * sr, window_type, overlap)
+                        yi_windows = sigwin(yi, window_length * sr, window_type, overlap)
+
+                        # print(len(xi_windows))
+                        if intra_song_shuffle:
+                            np.random.shuffle(xi_windows)
+                            np.random.shuffle(yi_windows)
+
+                        for window_index in range(xi_windows.shape[0]):
+                            xi_window_spect = np.abs(librosa.stft(xi_windows[window_index], n_fft=n_fft,
+                                                                  hop_length=hop_length), dtype='float32')
+                            yi_window_spect = np.abs(librosa.stft(yi_windows[window_index], n_fft=n_fft,
+                                                                  hop_length=hop_length), dtype='float32')
+
+                            if network.lower() == 'u_net':
+                                xi_window_spect = xi_window_spect[:-1, :-1]
+                                yi_window_spect = yi_window_spect[:-1, :-1]
+
+                            if dB:
+                                yi_window_spect = librosa.amplitude_to_db(yi_window_spect, ref=np.max(xi_window_spect))
+                                xi_window_spect = librosa.amplitude_to_db(xi_window_spect, ref=np.max)
+
+                                np.clip(xi_window_spect, -80, 0, xi_window_spect)
+                                np.clip(yi_window_spect, -80, 0, yi_window_spect)
+
+                            if normalize_from_dataset:
+                                if normalize:
+                                    xi_window_spect = xi_window_spect / np.max([statistics['maxim_mixture_spect'],
+                                                                                np.abs(
+                                                                                    statistics['minim_mixture_spect'])])
+                                    yi_window_spect = yi_window_spect / np.max([statistics['maxim_' + str(source) +
+                                                                                           '_spect'], np.abs(
+                                        statistics['minim_' + str(source) + '_spect'])])
+
+                                elif normalize01:
+                                    if statistics['maxim_mixture_spect'] - statistics['minim_mixture_spect']:
+                                        xi_window_spect = (xi_window_spect - statistics['minim_mixture_spect']) / \
+                                                          (statistics['maxim_mixture_spect'] - statistics[
+                                                              'minim_mixture_spect'])
+                                    else:
+                                        xi_window_spect = np.zeros(xi_window_spect.shape)
+                                    if statistics['maxim_' + str(source) + '_spect'] - \
+                                            statistics['minim_' + str(source) + '_spect']:
+                                        yi_window_spect = (yi_window_spect - statistics[
+                                            'minim_' + str(source) + '_spect']) / \
+                                                          (statistics['maxim_' + str(source) + '_spect'] -
+                                                           statistics['minim_' + str(source) + '_spect'])
+                                    else:
+                                        yi_window_spect = np.zeros(yi_window_spect)
+
+                                elif standardize:
+                                    xi_window_spect = (xi_window_spect - statistics['mean_mixture_spect']) / \
+                                                      statistics['std_mixture_spect']
+                                    yi_window_spect = (yi_window_spect - statistics['mean_' + str(source) + '_spect']) / \
+                                                      statistics['std_' + str(source) + '_spect']
+                            else:
+                                if normalize:
+                                    if (not dB and np.max(np.abs(xi_window_spect)) > 10) or (
+                                            dB and np.max(np.abs(xi_window_spect)) - np.min(np.abs(xi_window_spect)) > 10):
+                                        xi_window_spect = xi_window_spect / np.max(np.abs(xi_window_spect))
+                                    else:
+                                        xi_window_spect = np.zeros(xi_window_spect.shape)
+                                    if (not dB and np.max(np.abs(yi_window_spect)) > 1e4) or (
+                                            dB and np.max(np.abs(yi_window_spect)) - np.min(
+                                        np.abs(yi_window_spect)) > 10):
+                                        yi_window_spect = yi_window_spect / np.max(np.abs(yi_window_spect))
+                                    else:
+                                        yi_window_spect = np.zeros(yi_window_spect.shape)
+
+                                elif normalize01:
+                                    if dB:
+                                        xi_window_spect = (xi_window_spect + 80) / 80
+                                        yi_window_spect = (yi_window_spect + 80) / 80
+                                    else:
+                                        if np.max(xi_window_spect) - np.min(xi_window_spect) > 1e-2:
+                                            xi_window_spect = (xi_window_spect - np.min(xi_window_spect)) / \
+                                                              (np.max(xi_window_spect) - np.min(xi_window_spect))
+                                        else:
+                                            xi_window_spect = np.zeros(xi_window_spect.shape)
+                                        if np.max(yi_window_spect) - np.min(yi_window_spect) > 1e-2:
+                                            yi_window_spect = (yi_window_spect - np.min(yi_window_spect)) / \
+                                                              (np.max(yi_window_spect) - np.min(yi_window_spect))
+                                        else:
+                                            yi_window_spect = np.zeros(yi_window_spect.shape)
+
+                                elif standardize:
+                                    xi_window_spect = (xi_window_spect - np.mean(xi_window_spect)) / np.std(
+                                        xi_window_spect)
+                                    yi_window_spect = (yi_window_spect - np.mean(yi_window_spect)) / np.std(
+                                        yi_window_spect)
+
+                            #     if window_index == x_windows.shape[0] // 2:
+                            #         print(x_window_spect.shape, y_window_spect.shape)
+                            #         print('extreme x:', np.max(x_window_spect), np.min(x_window_spect))
+                            #         print('extreme y:', np.max(y_window_spect), np.min(y_window_spect))
+                            #         print('stats x:', np.mean(x_window_spect), np.std(x_window_spect))
+                            #         print('stats y:', np.mean(y_window_spect), np.std(y_window_spect))
+                            #           break
+
+                            if subfolder == 'train':
+                                train_serialized_spectrograms = serialize_data_1_source(
+                                    xi_window_spect.astype(np.float32),
+                                    yi_window_spect.astype(np.float32))
+                                writer_train.write(train_serialized_spectrograms)
+                                train_card += 1
+                            elif subfolder == 'val':
+                                val_serialized_spectrograms = serialize_data_1_source(
+                                    xi_window_spect.astype(np.float32),
+                                    yi_window_spect.astype(np.float32))
+                                writer_val.write(val_serialized_spectrograms)
+                                val_card += 1
+                            txt += song + ' ' + str(xi_window_spect.dtype) + ' ' + str(yi_window_spect.dtype) + '\n'
+
+
+                    else:
+                        if normalize_from_dataset:
+                            if normalize:
+                                xi = xi / np.max([statistics['maxim_mixture'], np.abs(statistics['minim_mixture'])])
+                                yi = yi / np.max([statistics['maxim_' + str(source)], np.abs(statistics['minim_'
+                                                                                                        + str(
+                                    source)])])
+
+                            elif normalize01:
+                                xi = (xi - statistics['minim_mixture']) / (statistics['maxim_mixture']
+                                                                           - statistics['minim_mixture'])
+                                yi = (yi - statistics['minim_' + str(source)]) / (statistics['maxim_' + str(source)] -
+                                                                                  statistics['minim_' + str(source)])
+
+                            elif standardize:
+                                xi = (xi - statistics['mean_mixture']) / statistics['std_mixture']
+                                yi = (yi - statistics['mean_' + str(source)]) / statistics['std_' + str(source)]
+                        else:
+                            if normalize:
+                                xi = xi / np.max(np.abs(xi))
+                                yi = yi / np.max(np.abs(yi))
+
+                            elif normalize01:
+                                xi = (xi - np.min(xi)) / (np.max(xi) - np.min(xi))
+                                yi = (yi - np.min(yi)) / (np.max(yi) - np.min(yi))
+
+                            elif standardize:
+                                xi = (xi - np.mean(xi)) / np.std(xi)
+                                yi = (yi - np.mean(yi)) / np.std(yi)
+
+                        xi_windows = sigwin(xi, window_length * sr, window_type, overlap)
+                        yi_windows = sigwin(yi, window_length * sr, window_type, overlap)
+
+                        if intra_song_shuffle:
+                            np.random.shuffle(xi_windows)
+                            np.random.shuffle(yi_windows)
+
+                        # print(x_windows.shape, y_windows.shape)
+                        # print('extreme x:', np.max(x_windows), np.min(x_windows))
+                        # print('extreme y:', np.max(y_windows), np.min(y_windows))
+                        # print('stats x:', np.mean(x_windows), np.std(x_windows))
+                        # print('stats y:', np.mean(y_windows), np.std(y_windows))
+                        # break
+
+                        for window_index in range(xi_windows.shape[0]):
+                            if subfolder == 'train':
+                                train_serialized_waveforms = serialize_data_1_source(xi_windows[window_index],
+                                                                                     yi_windows[window_index])
+                                writer_train.write(train_serialized_waveforms)
+                                train_card += 1
+                            elif subfolder == 'val':
+                                val_serialized_waveforms = serialize_data_1_source(xi_windows[window_index],
+                                                                                   yi_windows[window_index])
+                                writer_val.write(val_serialized_waveforms)
+                                val_card += 1
+
+    else:
+        raise Exception('Dataset is not correct')
+
+    with open('out.txt', 'w') as f:
+        print(txt, file=f)
+
+    write_cardinality(os.path.join('..', 'Cardinality', card_txt), train_card, val_card)
+
+
+
+def preprocess_1_source_aug_single_instrument(dataset, resample, sr, window_length, overlap, window_type, compute_spect, dB, n_fft,
+                            hop_length, writer_train, writer_val, source, extra_song_shuffle, intra_song_shuffle,
+                            normalize_from_dataset, statistics_path, normalize, normalize01, standardize, card_txt,
+                            network, augments):
+    train_card, val_card = 0, 0
+    np.random.seed(42)
+
+    txt = ''
+    if (normalize and normalize01) or (normalize01 and standardize) or (normalize and standardize):
+        raise Exception('You need to choose only one type of normalization')
+
+    if normalize_from_dataset:
+        with open(statistics_path, 'rb') as f:
+            statistics = pickle.load(f)
+
+    if dataset.lower() == 'musdb18':
+        for subfolder in sorted(os.listdir(os.path.join('..', 'Datasets', 'MUSDB18'))):
+            path = os.path.join('..', 'Datasets', 'MUSDB18', subfolder)
+            songs = os.listdir(path)
+
+            if extra_song_shuffle:
+                np.random.shuffle(songs)
+            else:
+                songs = sorted(songs)
+
+            for i, song in enumerate(songs):
+                # if i == 1:
+                #     break
+                print(i, song)
+                if resample:
+                    bass, _ = librosa.load(os.path.join(path, song, 'bass.wav'), sr=sr, mono=True)
+                    drums, _ = librosa.load(os.path.join(path, song, 'drums.wav'), sr=sr, mono=True)
+                    vocals, _ = librosa.load(os.path.join(path, song, 'vocals.wav'), sr=sr, mono=True)
+                    other, _ = librosa.load(os.path.join(path, song, 'other.wav'), sr=sr, mono=True)
+                else:
+                    sr = librosa.get_samplerate(os.path.join(path, song, 'mixture.wav'))
+                    bass, _ = librosa.load(os.path.join(path, song, 'bass.wav'), sr=sr, mono=True)
+                    drums, _ = librosa.load(os.path.join(path, song, 'drums.wav'), sr=sr, mono=True)
+                    vocals, _ = librosa.load(os.path.join(path, song, 'vocals.wav'), sr=sr, mono=True)
+                    other, _ = librosa.load(os.path.join(path, song, 'other.wav'), sr=sr, mono=True)
+
+                min_length = np.min((len(vocals), len(bass), len(drums), len(other)))
+                vocals = vocals[:min_length]
+                bass = bass[:min_length]
+                drums = drums[:min_length]
+                other = other[:min_length]
+
+                sources = {'vocals': vocals, 'bass': bass, 'drums': drums, 'other': other}
+
+                x_list, y_list = [vocals + bass + drums + other], [sources[source]]
+                for aug in augments:
+                    x_aug, _ = data_aug((sources[source], sources[source]), aug)
+                    x_nonaug = np.zeros(sources[source].shape)
+                    for k in sources.keys():
+                        if k != source:
+                            x_nonaug += sources[k]
+
+                    aug_min_length = np.min((len(x_aug), len(sources[k])))
+                    x_list.append(x_aug[:aug_min_length] + x_nonaug[:aug_min_length])
+                    y_list.append(sources[source][:aug_min_length])
+
+                for xi, yi in zip(x_list, y_list):
+                    if compute_spect:
+                        xi_windows = sigwin(xi, window_length * sr, window_type, overlap)
+                        yi_windows = sigwin(yi, window_length * sr, window_type, overlap)
+
+                        if intra_song_shuffle:
+                            np.random.shuffle(xi_windows)
+                            np.random.shuffle(yi_windows)
+
+                        for window_index in range(xi_windows.shape[0]):
+                            xi_window_spect = np.abs(librosa.stft(xi_windows[window_index], n_fft=n_fft,
+                                                                  hop_length=hop_length), dtype='float32')
+                            yi_window_spect = np.abs(librosa.stft(yi_windows[window_index], n_fft=n_fft,
+                                                                  hop_length=hop_length), dtype='float32')
+
+                            if network.lower() == 'u_net':
+                                xi_window_spect = xi_window_spect[:-1, :-1]
+                                yi_window_spect = yi_window_spect[:-1, :-1]
+
+                            if dB:
+                                yi_window_spect = librosa.amplitude_to_db(yi_window_spect, ref=np.max(xi_window_spect))
+                                xi_window_spect = librosa.amplitude_to_db(xi_window_spect, ref=np.max)
+
+                                np.clip(xi_window_spect, -80, 0, xi_window_spect)
+                                np.clip(yi_window_spect, -80, 0, yi_window_spect)
+
+                            if normalize_from_dataset:
+                                if normalize:
+                                    xi_window_spect = xi_window_spect / np.max([statistics['maxim_mixture_spect'],
+                                                                                np.abs(
+                                                                                    statistics['minim_mixture_spect'])])
+                                    yi_window_spect = yi_window_spect / np.max([statistics['maxim_' + str(source) +
+                                                                                           '_spect'], np.abs(
+                                        statistics['minim_' + str(source) + '_spect'])])
+
+                                elif normalize01:
+                                    if statistics['maxim_mixture_spect'] - statistics['minim_mixture_spect']:
+                                        xi_window_spect = (xi_window_spect - statistics['minim_mixture_spect']) / \
+                                                          (statistics['maxim_mixture_spect'] - statistics[
+                                                              'minim_mixture_spect'])
+                                    else:
+                                        xi_window_spect = np.zeros(xi_window_spect.shape)
+                                    if statistics['maxim_' + str(source) + '_spect'] - \
+                                            statistics['minim_' + str(source) + '_spect']:
+                                        yi_window_spect = (yi_window_spect - statistics[
+                                            'minim_' + str(source) + '_spect']) / \
+                                                          (statistics['maxim_' + str(source) + '_spect'] -
+                                                           statistics['minim_' + str(source) + '_spect'])
+                                    else:
+                                        yi_window_spect = np.zeros(yi_window_spect)
+
+                                elif standardize:
+                                    xi_window_spect = (xi_window_spect - statistics['mean_mixture_spect']) / \
+                                                      statistics['std_mixture_spect']
+                                    yi_window_spect = (yi_window_spect - statistics['mean_' + str(source) + '_spect']) / \
+                                                      statistics['std_' + str(source) + '_spect']
+                            else:
+                                if normalize:
+                                    if (not dB and np.max(np.abs(xi_window_spect)) > 10) or (
+                                            dB and np.max(np.abs(xi_window_spect)) - np.min(np.abs(xi_window_spect)) > 10):
+                                        xi_window_spect = xi_window_spect / np.max(np.abs(xi_window_spect))
+                                    else:
+                                        xi_window_spect = np.zeros(xi_window_spect.shape)
+                                    if (not dB and np.max(np.abs(yi_window_spect)) > 1e4) or (
+                                            dB and np.max(np.abs(yi_window_spect)) - np.min(
+                                        np.abs(yi_window_spect)) > 10):
+                                        yi_window_spect = yi_window_spect / np.max(np.abs(yi_window_spect))
+                                    else:
+                                        yi_window_spect = np.zeros(yi_window_spect.shape)
+
+                                elif normalize01:
+                                    if dB:
+                                        xi_window_spect = (xi_window_spect + 80) / 80
+                                        yi_window_spect = (yi_window_spect + 80) / 80
+                                    else:
+                                        if np.max(xi_window_spect) - np.min(xi_window_spect) > 1e-2:
+                                            xi_window_spect = (xi_window_spect - np.min(xi_window_spect)) / \
+                                                              (np.max(xi_window_spect) - np.min(xi_window_spect))
+                                        else:
+                                            xi_window_spect = np.zeros(xi_window_spect.shape)
+                                        if np.max(yi_window_spect) - np.min(yi_window_spect) > 1e-2:
+                                            yi_window_spect = (yi_window_spect - np.min(yi_window_spect)) / \
+                                                              (np.max(yi_window_spect) - np.min(yi_window_spect))
+                                        else:
+                                            yi_window_spect = np.zeros(yi_window_spect.shape)
+
+                                elif standardize:
+                                    xi_window_spect = (xi_window_spect - np.mean(xi_window_spect)) / np.std(
+                                        xi_window_spect)
+                                    yi_window_spect = (yi_window_spect - np.mean(yi_window_spect)) / np.std(
+                                        yi_window_spect)
+
+                            #     if window_index == x_windows.shape[0] // 2:
+                            #         print(x_window_spect.shape, y_window_spect.shape)
+                            #         print('extreme x:', np.max(x_window_spect), np.min(x_window_spect))
+                            #         print('extreme y:', np.max(y_window_spect), np.min(y_window_spect))
+                            #         print('stats x:', np.mean(x_window_spect), np.std(x_window_spect))
+                            #         print('stats y:', np.mean(y_window_spect), np.std(y_window_spect))
+                            #           break
+
+                            if subfolder == 'train':
+                                train_serialized_spectrograms = serialize_data_1_source(
+                                    xi_window_spect.astype(np.float32),
+                                    yi_window_spect.astype(np.float32))
+                                writer_train.write(train_serialized_spectrograms)
+                                train_card += 1
+                            elif subfolder == 'val':
+                                val_serialized_spectrograms = serialize_data_1_source(
+                                    xi_window_spect.astype(np.float32),
+                                    yi_window_spect.astype(np.float32))
+                                writer_val.write(val_serialized_spectrograms)
+                                val_card += 1
+                            txt += song + ' ' + str(xi_window_spect.dtype) + ' ' + str(yi_window_spect.dtype) + '\n'
+
+
+                    else:
+                        if normalize_from_dataset:
+                            if normalize:
+                                xi = xi / np.max([statistics['maxim_mixture'], np.abs(statistics['minim_mixture'])])
+                                yi = yi / np.max([statistics['maxim_' + str(source)], np.abs(statistics['minim_'
+                                                                                                        + str(
+                                    source)])])
+
+                            elif normalize01:
+                                xi = (xi - statistics['minim_mixture']) / (statistics['maxim_mixture']
+                                                                           - statistics['minim_mixture'])
+                                yi = (yi - statistics['minim_' + str(source)]) / (statistics['maxim_' + str(source)] -
+                                                                                  statistics['minim_' + str(source)])
+
+                            elif standardize:
+                                xi = (xi - statistics['mean_mixture']) / statistics['std_mixture']
+                                yi = (yi - statistics['mean_' + str(source)]) / statistics['std_' + str(source)]
+                        else:
+                            if normalize:
+                                xi = xi / np.max(np.abs(xi))
+                                yi = yi / np.max(np.abs(yi))
+
+                            elif normalize01:
+                                xi = (xi - np.min(xi)) / (np.max(xi) - np.min(xi))
+                                yi = (yi - np.min(yi)) / (np.max(yi) - np.min(yi))
+
+                            elif standardize:
+                                xi = (xi - np.mean(xi)) / np.std(xi)
+                                yi = (yi - np.mean(yi)) / np.std(yi)
+
+                        xi_windows = sigwin(xi, window_length * sr, window_type, overlap)
+                        yi_windows = sigwin(yi, window_length * sr, window_type, overlap)
+
+                        if intra_song_shuffle:
+                            np.random.shuffle(xi_windows)
+                            np.random.shuffle(yi_windows)
+
+                        # print(x_windows.shape, y_windows.shape)
+                        # print('extreme x:', np.max(x_windows), np.min(x_windows))
+                        # print('extreme y:', np.max(y_windows), np.min(y_windows))
+                        # print('stats x:', np.mean(x_windows), np.std(x_windows))
+                        # print('stats y:', np.mean(y_windows), np.std(y_windows))
+                        # break
+
+                        for window_index in range(xi_windows.shape[0]):
+                            if subfolder == 'train':
+                                train_serialized_waveforms = serialize_data_1_source(xi_windows[window_index],
+                                                                                     yi_windows[window_index])
+                                writer_train.write(train_serialized_waveforms)
+                                train_card += 1
+                            elif subfolder == 'val':
+                                val_serialized_waveforms = serialize_data_1_source(xi_windows[window_index],
+                                                                                   yi_windows[window_index])
+                                writer_val.write(val_serialized_waveforms)
+                                val_card += 1
+
+    else:
+        raise Exception('Dataset is not correct')
+
+    with open('out.txt', 'w') as f:
+        print(txt, file=f)
 
     write_cardinality(os.path.join('..', 'Cardinality', card_txt), train_card, val_card)

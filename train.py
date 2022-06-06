@@ -21,8 +21,8 @@ def training(network, train_path, val_path, batch_size, shuffle_buffer_size, inp
 
     if not multiple_sources:
         if network.lower() == 'open_unmix':
-            mean = np.load(os.path.join('..', 'Models', 'open_unmix_mean2.npy'))
-            std = np.load(os.path.join('..', 'Models', 'open_unmix_std2.npy'))
+            mean = np.load(os.path.join('..', 'Models', 'mean_db.npy'))
+            std = np.load(os.path.join('..', 'Models', 'std_db.npy'))
 
             mean = np.expand_dims(mean, axis=-1)
             std = np.expand_dims(std, axis=-1)
@@ -34,8 +34,14 @@ def training(network, train_path, val_path, batch_size, shuffle_buffer_size, inp
             model = create_model_u_net_1_source(input_shape=input_shape, optimizer=optimizer, loss=loss,
                                                 initial_filters=initial_filters, stride=stride, kernel_size=kernel_size,
                                                 drop_out=drop_out)
+            # model = create_model_u_net_1_source_maxpooling(input_shape=input_shape, optimizer=optimizer, loss=loss,
+            #                                     initial_filters=initial_filters, stride=stride, kernel_size=kernel_size,
+            #                                     drop_out=drop_out)
+        elif network.lower() == 'cdae':
+            model = create_model_cdae_1_source(input_shape=input_shape, optimizer=optimizer, loss=loss)
+
         else:
             raise Exception('Network type is not correct!')
 
-    model.fit(train_dataset, batch_size=batch_size, epochs=epochs, validation_data=val_dataset, verbose=1,
+    model.fit(train_dataset, epochs=epochs, validation_data=val_dataset, verbose=1,
               callbacks=callbacks)

@@ -54,11 +54,14 @@ class Spectrogram_Callback_1_source(keras.callbacks.Callback):
                                                                  y_axis='log', sr=self.sr, hop_length=self.hop_length,
                                                                  x_axis='time', ax=ax[1])
 
-            fig.colorbar(true_source_show, ax=ax)
+            fig.colorbar(true_source_show, ax=ax)#, format="%+2.f dB")
             ax[0].set_title('Ground Truth vs Prediction')
-            fig.savefig(os.path.join('..', 'Models', 'Spectrograms', str(self.model_name) + '_epoch_' + str(epoch) + '.png'))
+            fig.savefig(os.path.join('..', 'Spectrograms', str(self.model_name) + '_epoch_' + str(epoch) + '.png'))
 
             print('Saving a validation spectrogram to ../Models/Spectrograms/{}_epoch_{}.png'.format(self.model_name, epoch))
+            print('Max and min:', predicted_source.max(), predicted_source.min())
+
+            plt.clf()
 
 
 class Scale_Layers_Callback(keras.callbacks.Callback):
@@ -104,4 +107,14 @@ class GetMeanCallback(keras.callbacks.Callback):
 
     # def on_batch_begin(self, batch, logs=None):
     #     print(type(batch))
+
+
+class GetEpoch(keras.callbacks.Callback):
+    def __init__(self, model_name):
+        super().__init__()
+        self.model_name = model_name
+
+    def on_epoch_begin(self, epoch, logs=None):
+        with open(os.path.join('..', 'Cardinality', self.model_name + '_epoch.txt'), 'w+') as f:
+            f.write(str(epoch))
 
