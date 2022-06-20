@@ -8,7 +8,7 @@ import shutil
 dataset = 'MUSDB18'
 network = 'u_net'
 
-pred_source = 'vocals'
+pred_source = 'other'
 pred_aug = False
 pred_multiple_sources = False
 pred_resample = True
@@ -28,7 +28,7 @@ pred_standardize = False
 pred_normalize_from_dataset = False
 
 test_path = os.path.join('..', 'Datasets', 'Test')
-load_model_name = 'u_net_17_vocals.h5'
+load_model_name = 'u_net_17_other.h5'
 model_path = os.path.join('..', 'Models', load_model_name)
 save_song_path = os.path.join('..', 'Predictions', 'Source Phase')
 dataset_path = os.path.join('..', 'Datasets', 'MUSDB18')
@@ -55,7 +55,8 @@ for j, folder in enumerate(sorted(os.listdir(dataset_path))):
                  save_path=os.path.join(os.path.join('..', 'Datasets', 'MUSDB18_predict', folder, song)),
                  network=network, model=model)
 
-        shutil.copy2(os.path.join('..', 'Datasets', 'MUSDB18', folder, song, pred_source + '.wav'),
-                     os.path.join('..', 'Datasets', 'MUSDB18_predict', folder, song, pred_source + '.wav'))
+        # os.mkdir(os.path.join('..', 'Datasets', 'MUSDB18_predict', folder, song))
+        # shutil.copy2(os.path.join('..', 'Datasets', 'MUSDB18_predict_vocals', folder, song, pred_source + '_pred.wav'),
+        #              os.path.join('..', 'Datasets', 'MUSDB18_predict', folder, song, pred_source + '.wav'))
 
 

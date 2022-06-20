@@ -24,6 +24,8 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
             model = tf.keras.models.load_model(model_path)
         except:
             model = tf.keras.models.load_model(model_path, custom_objects={'L11_norm': L11_norm})
+    else:
+        model = tf.keras.models.load_model(model_path)
 
     original_sr = librosa.get_samplerate(test_path)
     if resample:
@@ -676,7 +678,8 @@ def predict2(test_path, model_path, multiple_sources, compute_spect, resample, s
             else:
                 test_source = sigrec(source_windows, overlap, 'OLA')
             test_source = librosa.resample(test_source, 8192, 44100)
-            wavfile.write(os.path.join(save_path, str(source) + '_pred.wav'), 44100, test_source)
+            test_souce = test_source / np.max(np.abs(test_source))
+            wavfile.write(os.path.join(save_path, str(source) + '.wav'), 44100, test_source)
             print(str(source).capitalize() + ' prediction done!')
         else:
             print('Prediction windows done!')
