@@ -190,13 +190,6 @@ def main():
                                     normalize_from_dataset=normalize_from_dataset, statistics_path=statistics_path,
                                     normalize=normalize, normalize01=normalize01, standardize=standardize,
                                     card_txt=card_txt, network=network, augments=augments)
-            # preprocess_inverse(dataset=dataset, resample=resample, sr=sr, window_length=window_length, overlap=overlap,
-            #                    window_type=window_type, compute_spect=compute_spect, dB=dB, n_fft=n_fft,
-            #                    hop_length=hop_length, writer_train=writer_train, writer_val=writer_val,
-            #                    extra_song_shuffle=extra_song_shuffle, intra_song_shuffle=intra_song_shuffle,
-            #                    normalize_from_dataset=normalize_from_dataset, statistics_path=statistics_path,
-            #                    normalize=normalize, normalize01=normalize01, standardize=standardize,
-            #                    card_txt=card_txt)
 
     if train:
         try:
