@@ -5,17 +5,6 @@ import os
 from utils import sigwin, sigrec
 from scipy.io import wavfile
 
-
-# song_name = 'train_1.wav'
-# best_model = False
-# model_name = 'u_net_17'
-# if best_model:
-#     model_name += '_best'
-# test_path = os.path.join('..', 'Datasets', 'Test', song_name)
-# source_path = os.path.join('..', 'Predictions', 'Wiener')
-# filtered_path = os.path.join('..', 'Predictions', 'Wiener', 'Filtered50')
-# file_name = song_name.split('.')[0] + '_' + model_name + '_'
-
 mixture_path = os.path.join('..', 'Datasets', 'MUSDB18')
 prediction_path = os.path.join('..', 'Datasets', 'MUSDB18_predict_normed')
 wiener_path = os.path.join('..', 'Datasets', 'MUSDB18_predict_normed_Wiener')
