@@ -22,16 +22,12 @@ for i, data in enumerate(train.take(-1)):
 
 mean_list = np.asanyarray(mean_list)
 std_list = np.asanyarray(std_list)
-# print(mean_list.shape)
 
 global_mean = np.mean(mean_list, axis=0)
 global_std = np.sqrt(np.mean((mean_list - global_mean) ** 2 + std_list ** 2, axis=0))
-# print(global_mean.shape)
-# print(global_std.shape)
 
 np.save(os.path.join('..', 'Models', 'mean_db.npy'), global_mean)
 np.save(os.path.join('..', 'Models', 'std_db.npy'), global_std)
 
-# print(np.min(global_mean), np.max(global_mean), np.min(global_std), np.max(global_std))
 
 
