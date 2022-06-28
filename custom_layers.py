@@ -15,9 +15,6 @@ class ScaleInLayer(tf.keras.layers.Layer):
         self.mean_parameter.assign(self.mean)
         self.std_parameter.assign(self.std)
 
-        # self.mean_parameter.assign(tf.zeros(shape=(input_shape[-2], 1)))
-        # self.std_parameter.assign(tf.ones(shape=(input_shape[-2], 1)))
-
     def call(self, inputs):
         return tf.math.divide(tf.math.subtract(inputs, self.mean_parameter), self.std_parameter)
 
@@ -39,9 +36,6 @@ class ScaleOutLayer(tf.keras.layers.Layer):
     def build(self, input_shape):
         self.mean_parameter = self.add_weight("mean", shape=(input_shape[-2], 1), trainable=True)
         self.std_parameter = self.add_weight("std", shape=(input_shape[-2], 1), trainable=True)
-
-        # self.mean_parameter.assign(self.mean)
-        # self.std_parameter.assign(self.std)
 
         self.mean_parameter.assign(tf.zeros(shape=(input_shape[-2], 1)))
         self.std_parameter.assign(tf.ones(shape=(input_shape[-2], 1)))
