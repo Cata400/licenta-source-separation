@@ -86,13 +86,8 @@ class GetMeanCallback(keras.callbacks.Callback):
             if 'lambda' in layer.name:
                 inp = self.model.input
                 lambda_out = layer.output
-                # lambda_out = K.function(inputs=[layer.input], outputs=[lambda_out])
                 lambda_out = K.eval(layer.input)
                 print(lambda_out)
-
-                # input_mean = tf.math.reduce_mean(lambda_out, axis=-1)
-                # input_mean = tf.expand_dims(input_mean, axis=-1)
-                # input_mean = tf.reshape(input_mean, (input_mean.shape[-2], input_mean.shape[-1]))
 
                 input_mean = np.mean(lambda_out, axis=-1)
                 input_mean = np.expand_dims(input_mean, axis=-1)
@@ -104,9 +99,6 @@ class GetMeanCallback(keras.callbacks.Callback):
 
             if 'ScaleIn' in layer.name:
                 layer.set_weights([input_mean, input_std])
-
-    # def on_batch_begin(self, batch, logs=None):
-    #     print(type(batch))
 
 
 class GetEpoch(keras.callbacks.Callback):
