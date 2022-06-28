@@ -34,9 +34,6 @@ def training(network, train_path, val_path, batch_size, shuffle_buffer_size, inp
             model = create_model_u_net_1_source(input_shape=input_shape, optimizer=optimizer, loss=loss,
                                                 initial_filters=initial_filters, stride=stride, kernel_size=kernel_size,
                                                 drop_out=drop_out)
-            # model = create_model_u_net_1_source_maxpooling(input_shape=input_shape, optimizer=optimizer, loss=loss,
-            #                                     initial_filters=initial_filters, stride=stride, kernel_size=kernel_size,
-            #                                     drop_out=drop_out)
         elif network.lower() == 'cdae':
             model = create_model_cdae_1_source(input_shape=input_shape, optimizer=optimizer, loss=loss)
 
