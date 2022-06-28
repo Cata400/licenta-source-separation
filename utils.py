@@ -180,11 +180,11 @@ def parse_and_decode_all_sources(example_proto):
     decoded_vocals = tf.io.parse_tensor(element['vocals'], 'float32')
     decoded_other = tf.io.parse_tensor(element['other'], 'float32')
 
-    # decoded_mixture = tf.expand_dims(decoded_mixture, axis=-1)
-    # decoded_bass = tf.expand_dims(decoded_bass, axis=-1)
-    # decoded_drums = tf.expand_dims(decoded_drums, axis=-1)
-    # decoded_vocals = tf.expand_dims(decoded_vocals, axis=-1)
-    # decoded_other = tf.expand_dims(decoded_other, axis=-1)
+    decoded_mixture = tf.expand_dims(decoded_mixture, axis=-1)
+    decoded_bass = tf.expand_dims(decoded_bass, axis=-1)
+    decoded_drums = tf.expand_dims(decoded_drums, axis=-1)
+    decoded_vocals = tf.expand_dims(decoded_vocals, axis=-1)
+    decoded_other = tf.expand_dims(decoded_other, axis=-1)
 
     return decoded_mixture, decoded_bass, decoded_drums, decoded_vocals, decoded_other
 
