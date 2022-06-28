@@ -56,15 +56,6 @@ for nr, pred_dB, pred_batch_size in zip(model_numbers, dbs, batches):
             normalize=pred_normalize, normalize01=pred_normalize01, standardize=pred_standardize,
             batch_size=pred_batch_size, save_path=os.path.join(save_song_path, test_song), network=network)
 
-    # test_song = 'test.wav'
-    # predict(test_path=os.path.join(test_path, test_song), model_path=os.path.join(model_path, load_model_name),
-    #         multiple_sources=pred_multiple_sources, compute_spect=pred_compute_spect, resample=pred_resample,
-    #         sr=pred_sr, window_length=pred_window_length, overlap=pred_overlap, window_type=pred_window_type,
-    #         dB=pred_dB, n_fft=pred_n_fft, hop_length=pred_hop_length, source=pred_source,
-    #         normalize_from_dataset=pred_normalize_from_dataset, statistics_path='',
-    #         normalize=pred_normalize, normalize01=pred_normalize01, standardize=pred_standardize,
-    #         batch_size=pred_batch_size, save_path=os.path.join(save_song_path, test_song), network=network)
-
     load_model_name = 'u_net_' + str(nr) + '_best.h5'
     print('MODEL: ', load_model_name)
 
@@ -85,12 +76,3 @@ for nr, pred_dB, pred_batch_size in zip(model_numbers, dbs, batches):
             normalize_from_dataset=pred_normalize_from_dataset, statistics_path='',
             normalize=pred_normalize, normalize01=pred_normalize01, standardize=pred_standardize,
             batch_size=pred_batch_size, save_path=os.path.join(save_song_path, test_song), network=network)
-
-    # test_song = 'test.wav'
-    # predict(test_path=os.path.join(test_path, test_song), model_path=os.path.join(model_path, load_model_name),
-    #         multiple_sources=pred_multiple_sources, compute_spect=pred_compute_spect, resample=pred_resample,
-    #         sr=pred_sr, window_length=pred_window_length, overlap=pred_overlap, window_type=pred_window_type,
-    #         dB=pred_dB, n_fft=pred_n_fft, hop_length=pred_hop_length, source=pred_source,
-    #         normalize_from_dataset=pred_normalize_from_dataset, statistics_path='',
-    #         normalize=pred_normalize, normalize01=pred_normalize01, standardize=pred_standardize,
-    #         batch_size=pred_batch_size, save_path=os.path.join(save_song_path, test_song), network=network)
