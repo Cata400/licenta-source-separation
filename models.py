@@ -83,21 +83,6 @@ def create_model_u_net_1_source(input_shape, optimizer, loss, initial_filters, s
     act6 = LeakyReLU(alpha=0.2)(bn6)
     print(act6.shape)
 
-    # ##############
-    # conv7 = Conv2D(filters=64 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act6)
-    # bn7 = BatchNormalization()(conv7)
-    # act7 = LeakyReLU(alpha=0.2)(bn7)
-    # print(act7.shape)
-    #
-    #
-    # deconv6 = Conv2DTranspose(filters=32 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act7)
-    # bn6_2 = BatchNormalization()(deconv6)
-    # act6_2 = Activation('relu')(bn6_2)
-    # act6_2 = Dropout(rate=drop_out)(act6_2)
-    # dec6 = Concatenate(axis=-1)([act6, act6_2])
-    # print(act6_2.shape, dec6.shape)
-    # ##############
-
     # Decoder
     deconv5 = Conv2DTranspose(filters=16 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(
         act6)
@@ -162,10 +147,10 @@ def create_model_u_net_1_source_maxpooling(input_shape, optimizer, loss, initial
     act1 = LeakyReLU(alpha=0.2)(bn1)
     print(act1.shape)
 
-    # conv2 = Conv2D(filters=2 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act1)
-    # bn2 = BatchNormalization()(conv2)
-    # act2 = LeakyReLU(alpha=0.2)(bn2)
-    # print(act2.shape)
+    conv2 = Conv2D(filters=2 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act1)
+    bn2 = BatchNormalization()(conv2)
+    act2 = LeakyReLU(alpha=0.2)(bn2)
+    print(act2.shape)
     act2 = MaxPool2D((2, 2))(act1)
     print(act2.shape)
 
@@ -174,10 +159,10 @@ def create_model_u_net_1_source_maxpooling(input_shape, optimizer, loss, initial
     act3 = LeakyReLU(alpha=0.2)(bn3)
     print(act3.shape)
 
-    # conv4 = Conv2D(filters=8 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act3)
-    # bn4 = BatchNormalization()(conv4)
-    # act4 = LeakyReLU(alpha=0.2)(bn4)
-    # print(act4.shape)
+    conv4 = Conv2D(filters=8 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act3)
+    bn4 = BatchNormalization()(conv4)
+    act4 = LeakyReLU(alpha=0.2)(bn4)
+    print(act4.shape)
     act4 = MaxPool2D((2, 2))(act3)
     print(act4.shape)
 
@@ -186,27 +171,12 @@ def create_model_u_net_1_source_maxpooling(input_shape, optimizer, loss, initial
     act5 = LeakyReLU(alpha=0.2)(bn5)
     print(act5.shape)
 
-    # conv6 = Conv2D(filters=32 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act5)
-    # bn6 = BatchNormalization()(conv6)
-    # act6 = LeakyReLU(alpha=0.2)(bn6)
-    # print(act6.shape)
+    conv6 = Conv2D(filters=32 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act5)
+    bn6 = BatchNormalization()(conv6)
+    act6 = LeakyReLU(alpha=0.2)(bn6)
+    print(act6.shape)
     act6 = MaxPool2D((2, 2))(act5)
     print(act6.shape)
-
-    # ##############
-    # conv7 = Conv2D(filters=64 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act6)
-    # bn7 = BatchNormalization()(conv7)
-    # act7 = LeakyReLU(alpha=0.2)(bn7)
-    # print(act7.shape)
-    #
-    #
-    # deconv6 = Conv2DTranspose(filters=32 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(act7)
-    # bn6_2 = BatchNormalization()(deconv6)
-    # act6_2 = Activation('relu')(bn6_2)
-    # act6_2 = Dropout(rate=drop_out)(act6_2)
-    # dec6 = Concatenate(axis=-1)([act6, act6_2])
-    # print(act6_2.shape, dec6.shape)
-    # ##############
 
     # Decoder
     deconv5 = Conv2DTranspose(filters=16 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(
@@ -217,7 +187,6 @@ def create_model_u_net_1_source_maxpooling(input_shape, optimizer, loss, initial
     dec5 = Concatenate(axis=-1)([act5, act5_2])
     print(act5_2.shape, dec5.shape)
 
-    # deconv4 = Conv2DTranspose(filters=8 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same', kernel_regularizer='l2')(dec5)
     deconv4 = Conv2DTranspose(filters=8 * initial_filters, kernel_size=kernel_size, strides=stride, padding='same')(
         dec5)
     bn4_2 = BatchNormalization()(deconv4)
