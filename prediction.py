@@ -263,10 +263,7 @@ def predict(test_path, model_path, multiple_sources, compute_spect, resample, sr
 
         if not multiple_sources:
             print('Prediction windows done!')
-            if window_type == 'rect':
-                test_source = sigrec(source_windows, overlap, 'MEAN')
-            else:
-                test_source = sigrec(source_windows, overlap, 'OLA')
+            test_source = sigrec(source_windows, overlap, 'OLA')
             wavfile.write(save_path.split('.wav')[0] + '_' + model_name + '_' + str(source) + '.wav', sr, test_source)
             print(str(source).capitalize() + ' prediction done!')
         else:
@@ -673,10 +670,7 @@ def predict2(test_path, model_path, multiple_sources, compute_spect, resample, s
 
         if not multiple_sources:
             print('Prediction windows done!')
-            if window_type == 'rect':
-                test_source = sigrec(source_windows, overlap, 'MEAN')
-            else:
-                test_source = sigrec(source_windows, overlap, 'OLA')
+            test_source = sigrec(source_windows, overlap, 'OLA')
             test_source = librosa.resample(test_source, 8192, 44100)
             test_souce = test_source / np.max(np.abs(test_source))
             wavfile.write(os.path.join(save_path, str(source) + '.wav'), 44100, test_source)
