@@ -240,7 +240,7 @@ def data_aug(signals, type):
     x, y = signals
 
     # Adaugat zgomot cu SNR intre valori
-    if type == 'noise':
+    if type == 'gaussian_noise':
         SNR_target = np.random.uniform(10, 30)
         noise = np.random.normal(0, 1, size=len(x))
         alpha = ((10 ** (SNR_target / 10) * np.sum(noise ** 2)) / np.sum(x ** 2)) ** (-1 / 2)
@@ -248,6 +248,13 @@ def data_aug(signals, type):
         x = x + noise * alpha
         y = y + noise * alpha
 
+    if type == 'impulsive_noise':
+        prob = np.random.uniform(0, 0.01)
+        noise_mask = np.random.choice((0, 1, 2), size=(len(x),), p=[1 - prob, prob / 2, prob / 2])
+        x[noise_mask == 1] = 1
+        x[noise_mask == 2] = -1
+        y[noise_mask == 1] = 1
+        y[noise_mask == 2] = -1
     # Amplitude change
     if type == 'gain':
         gain = np.random.uniform(0.5, 1.5)
@@ -262,7 +269,7 @@ def data_aug(signals, type):
 
     # Phaser
     if type == 'phaser':
-        FX = FX.phaser(gain_in=np.random.uniform(0.85, 0.95), gain_out=np.random.uniform(0.75, 0.85),)
+        FX = FX.phaser(gain_in=np.random.uniform(0.8, 0.95), gain_out=np.random.uniform(0.5, 0.75),)
         x = FX(x)
         y = FX(y)
 
@@ -275,6 +282,21 @@ def data_aug(signals, type):
     # Pitch
     if type == 'pitch':
         FX = FX.pitch(shift=np.random.uniform(-200, 200))
+        x = FX(x)
+        y = FX(y)
+
+    if type == 'eq':
+        FX = FX.equalizer(frequency=np.random.uniform(400, 1000))
+        x = FX(x)
+        y = FX(y)
+
+    if type == 'delay':
+        FX = FX.delay(gain_in=np.random.uniform(0.8, 0.95), gain_out=np.random.uniform(0.5, 0.75),)
+        x = FX(x)
+        y = FX(y)
+
+    if type == 'tremolo':
+        FX = FX.tremolo(freq=np.random.uniform(400, 1000), depth=np.random.uniform(40, 80),)
         x = FX(x)
         y = FX(y)
 
