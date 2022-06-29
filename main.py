@@ -39,7 +39,7 @@ def main():
     source = 'vocals'  # Source to separate, for MUSDB18 can be 'bass', 'drums', 'vocals', 'other'
 
     aug = True
-    augments = ['noise', 'gain', 'reverb', 'overdrive', 'pitch']
+    augments = ['gaussian_noise', 'gain', 'reverb', 'overdrive', 'pitch']
 
     # The name format is:
     # signal-rep_dataset_sr_sr-value_window_win-len-value_overlap_percent_win-type_nfft_nfft-value_hop_hop-len-value_shuffle-mode_norm-mode_source'
